@@ -1,0 +1,27 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# Audio & Speech Processing
+openai-whisper>=20231117
+torch>=2.0.0
+
+# NLP & ML
+transformers>=4.34.0
+datasets>=2.14.0
+evaluate>=0.4.0
+nltk>=3.8.1
+
+# Experiment Tracking
+mlflow>=2.10.0
+
+# Utilities
+requests>=2.31.0
+
+# Development (optional)
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# black>=23.10.0
+# ruff>=0.14.10
+# mypy>=1.6.0
