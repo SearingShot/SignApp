@@ -7,7 +7,7 @@ nltk.download('punkt')
 bleu = evaluate.load("bleu")
 rouge = evaluate.load("rouge")
 
-base_model = "t5-base"
+base_model = "t5-small"  # You can choose a larger model like "t5-base" or "t5-large" if you have the resources
 
 tokenizer = T5Tokenizer.from_pretrained(base_model)
 transformer_model = T5ForConditionalGeneration.from_pretrained(base_model)
@@ -78,16 +78,16 @@ def compute_metrics(eval_pred):
 
 training_args = Seq2SeqTrainingArguments(
     output_dir="./speechCleaner_t5_model",
-    eval_strategy="epoch",
+    eval_strategy="no",
     save_strategy="epoch",
     learning_rate=3e-5,
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
-    num_train_epochs=4,
+    num_train_epochs=2,
     weight_decay=0.01,
     logging_steps=100,
     save_total_limit=2,
-    fp16=True,
+    fp16=False,  # Set to True if you have a compatible GPU
     report_to="mlflow"
 )
 

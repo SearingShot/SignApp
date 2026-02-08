@@ -1,19 +1,19 @@
 import torch
 from transformers import RobertaTokenizerFast, RobertaForTokenClassification
 
-MODEL_PATH = "disfluency_model" 
+MODEL_PATH = "disfluency_model"
 
+# Load tokenizer & model
 tokenizer = RobertaTokenizerFast.from_pretrained(MODEL_PATH)
 model = RobertaForTokenClassification.from_pretrained(MODEL_PATH)
 
-
-id2label = {0: "O", 1: "DIS"}
-label2id = {"O": 0, "DIS": 1}
+# Pull label mappings from trained model config (IMPORTANT)
+id2label = model.config.id2label
+label2id = model.config.label2id
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 model.eval()
-
 
 
 def remove_disfluency(text: str) -> str:
@@ -24,7 +24,8 @@ def remove_disfluency(text: str) -> str:
         words,
         is_split_into_words=True,
         return_tensors="pt",
-        truncation=True
+        truncation=True,
+        padding=True
     )
 
     inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -33,18 +34,18 @@ def remove_disfluency(text: str) -> str:
         outputs = model(**inputs)
 
     predictions = torch.argmax(outputs.logits, dim=-1)[0].tolist()
-
     word_ids = inputs.word_ids(batch_index=0)
 
     word_predictions = {}
-    for idx, word_id in enumerate(word_ids):
-        if word_id is None:
+    for token_idx, word_idx in enumerate(word_ids):
+        if word_idx is None:
             continue
-        if word_id not in word_predictions:
-            word_predictions[word_id] = predictions[idx]
+        if word_idx not in word_predictions:
+            word_predictions[word_idx] = predictions[token_idx]
 
     cleaned_words = [
-        word for i, word in enumerate(words)
+        word
+        for i, word in enumerate(words)
         if id2label[word_predictions.get(i, label2id["O"])] == "O"
     ]
 

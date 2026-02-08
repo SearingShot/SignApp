@@ -1,36 +1,35 @@
 import os
 import shutil
-import sys
 from fastapi import FastAPI, UploadFile, File
 import whisper
 
-
+from disfluency.inference import remove_disfluency
 
 app = FastAPI()
 
 whisper_model = whisper.load_model("small")
 
-upload_dir = "uploads"
-
-# run the fastapi app by uvicorn main:app --reload
+UPLOAD_DIR = "././uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @app.post("/voice-to-text/")
 def voice_to_text_endpoint(file: UploadFile = File(...)):
-    file_path = os.path.join(upload_dir, file.filename)
-    
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
     with open(file_path, "wb") as audio_file:
         shutil.copyfileobj(file.file, audio_file)
 
+    # Whisper transcription
     result = whisper_model.transcribe(file_path)
-    lang = result["language"]
     transcription = result["text"]
-    return {"language": lang, "transcription": transcription}
+    language = result["language"]
 
+    # Remove disfluencies
+    cleaned_text = remove_disfluency(transcription)
 
-def log_mel_spectrogram(file_path: str):
-    audio = whisper.load_audio(file_path)
-    audio = whisper.pad_or_trim(audio)
-    mel = whisper.log_mel_spectrogram(audio).to(whisper_model.device)
-    return {"mel_spectrogram_tensor": mel}  # Just returning the shape for simplicity
-
+    return {
+        "language": language,
+        "raw_transcription": transcription,
+        "cleaned_transcription": cleaned_text
+    }
