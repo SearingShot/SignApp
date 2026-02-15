@@ -3,26 +3,33 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration, Seq2SeqTrainer
 import mlflow
 import evaluate
 import nltk
+
 nltk.download('punkt')
 bleu = evaluate.load("bleu")
 rouge = evaluate.load("rouge")
 
-base_model = "t5-base"  # You can choose a larger model like "t5-base" or "t5-large" if you have the resources
+base_model = "t5-small"
 
 tokenizer = T5Tokenizer.from_pretrained(base_model)
 transformer_model = T5ForConditionalGeneration.from_pretrained(base_model)
 
-switchboard_dataset = load_dataset("amaai-lab/DisfluencySpeech")
+sign_language_conversion_dataset = load_dataset("achrafothman/aslg_pc12")
 
-def keep_only_text_columns(example):
+sign_language_conversion_dataset = load_dataset("achrafothman/aslg_pc12")
+
+# Split 90% train, 10% validation
+sign_language_conversion_dataset = sign_language_conversion_dataset["train"].train_test_split(test_size=0.1)
+
+
+def sign_friendly_mapping(example):
     return {
-        "input_text": example["transcript_a"],
-        "target_text": example["transcript_c"]
+        "input_text": example["text"],
+        "target_text": example["gloss"]
     }
 
-dataset = switchboard_dataset.map(
-    keep_only_text_columns,
-    remove_columns=switchboard_dataset["train"].column_names
+Dataset = sign_language_conversion_dataset.map(
+    sign_friendly_mapping,
+    remove_columns=sign_language_conversion_dataset["train"].column_names
 )
 
 def is_valid(example):
@@ -33,26 +40,25 @@ def is_valid(example):
         and example["target_text"].strip() != ""
     )
 
-dataset = dataset.filter(is_valid)
+Dataset = Dataset.filter(is_valid)
 
-encoding_max_length = 256
-decoding_max_length = 256
+max_input_length = 256
+max_target_length = 256
 
-def tokenize(sentences):
-    inputs = ["clean speech: " + text for text in sentences["input_text"]]
-
-    model_inputs = tokenizer(inputs, max_length=encoding_max_length, truncation=True, padding="max_length")
+def tokenize_function(examples):
+    inputs = ["convert to sign-friendly: " + text for text in examples["input_text"]]
+    model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding="max_length")
     labels = tokenizer(
-        sentences["target_text"],
-        max_length=decoding_max_length,
+        examples["target_text"],
+        max_length=max_target_length,
         truncation=True,
         padding="max_length"
     )
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
-tokenized_dataset = dataset.map(
-    tokenize,batched=True,remove_columns=dataset["train"].column_names
+tokenized_dataset = Dataset.map(
+    tokenize_function, batched=True, remove_columns=Dataset["train"].column_names
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=transformer_model)
@@ -77,7 +83,7 @@ def compute_metrics(eval_pred):
     }
 
 training_args = Seq2SeqTrainingArguments(
-    output_dir="./speechCleaner_t5_model",
+    output_dir="./sign_language_converter_model",
     eval_strategy="epoch",
     save_strategy="epoch",
     learning_rate=3e-5,
@@ -85,37 +91,37 @@ training_args = Seq2SeqTrainingArguments(
     per_device_eval_batch_size=8,
     num_train_epochs=5,
     weight_decay=0.01,
-    logging_steps=100,
+    predict_with_generate=True,
     save_total_limit=2,
-    fp16=True,  # Set to True if you have a compatible GPU
+    logging_steps=100,
+    fp16=True, # set to True if using a GPU with mixed precision support
     report_to="mlflow",
-    predict_with_generate=True
 )
 
 trainer = Seq2SeqTrainer(
     model=transformer_model,
     args=training_args,
     train_dataset=tokenized_dataset["train"],
-    eval_dataset=tokenized_dataset["validation"],
+    eval_dataset=tokenized_dataset["test"],
     data_collator=data_collator,
     compute_metrics=compute_metrics
 )
 
-mlflow.set_tracking_uri("file:./mlruns")
-mlflow.set_experiment("speechCleaner_t5_model")
-with mlflow.start_run():
+mlflow.set_tracking_uri("./mlruns")
+mlflow.set_experiment("Sign Language Text Conversion")
+with mlflow.start_run(run_name="T5 Sign Language Converter"):
     trainer.train()
-    trainer.save_model("./SpeechCleaner_t5_model")
-    tokenizer.save_pretrained("./SpeechCleaner_t5_model")
-
+    trainer.save_model("./sign_language_converter_model")
+    tokenizer.save_pretrained("./sign_language_converter_model")
 
 # Test the trained model on some example sentences
-def clean_text(text: str) -> str:
-    inputs = tokenizer("clean speech: " + text, return_tensors="pt", truncation=True).input_ids.to(transformer_model.device)
-    outputs = transformer_model.generate(inputs, max_length=decoding_max_length, num_beams=4, early_stopping=True)
-    cleaned_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return cleaned_text
+def convert_to_sign_friendly(text: str) -> str:
+    inputs = tokenizer("convert to sign-friendly: " + text, return_tensors="pt", truncation=True).input_ids.to(transformer_model.device)
+    outputs = transformer_model.generate(inputs, max_length=max_target_length, num_beams=4, early_stopping=True)
+    sign_friendly_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return sign_friendly_text.strip()
 
-print(clean_text("Yeah uh I I don't work but I used to work when I had two children"))
-print(clean_text("I want to go to the store um to buy some groceries"))
-print(clean_text("So uh the meeting is scheduled for uh next Monday at 10 am"))
+if __name__ == "__main__":
+    test_sentence = "I want to go to the store"
+    print("Original:", test_sentence)
+    print("Sign-friendly:", convert_to_sign_friendly(test_sentence))

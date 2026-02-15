@@ -4,6 +4,7 @@ from fastapi import FastAPI, UploadFile, File
 import whisper
 
 from disfluency.inference import remove_disfluency
+from sign_app.sign_language_text.inference import convert_to_sign_friendly
 
 app = FastAPI()
 
@@ -28,8 +29,11 @@ def voice_to_text_endpoint(file: UploadFile = File(...)):
     # Remove disfluencies
     cleaned_text = remove_disfluency(transcription)
 
+    sign_friendly_text = convert_to_sign_friendly(cleaned_text)
+
     return {
         "language": language,
         "raw_transcription": transcription,
-        "cleaned_transcription": cleaned_text
+        "cleaned_transcription": cleaned_text,
+        "sign_friendly_text": sign_friendly_text
     }

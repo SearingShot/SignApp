@@ -28,8 +28,8 @@ mlflow.db
 mlruns/
 .python-version
 disfluency_model/
-SpeechCleaner_t5_model/
 speechCleaner_t5_model/
+sign_language_converter_model/
 
 # Environment variables
 .env
