@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
-    {name = "SignApp Contributors", email = ""}
+    {name = "SignApp Contributors"}
 ]
 keywords = ["audio", "transcription", "whisper", "disfluency", "sign-language", "nlp"]
 classifiers = [
@@ -32,6 +32,7 @@ dependencies = [
     "nltk>=3.8.1",
     "requests>=2.31.0",
     "python-multipart>=0.0.6",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

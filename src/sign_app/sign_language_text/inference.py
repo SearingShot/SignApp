@@ -1,3 +1,4 @@
+import re
 import torch
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 
@@ -11,7 +12,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 model.eval()
 
-def convert_to_sign_friendly(text: str) -> str:
+def convert_to_sign_friendly(text: str) -> list[str]:
     inputs = tokenizer(
         "convert to sign-friendly: " + text,
         return_tensors="pt",
@@ -27,7 +28,26 @@ def convert_to_sign_friendly(text: str) -> str:
             early_stopping=True
         )
     sign_friendly_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return sign_friendly_text.strip()
+    sign_friendly_text = clean_gloss(sign_friendly_text)
+
+    return sign_friendly_text
+
+def clean_gloss(gloss: str) -> list[str]:
+    words = gloss.split()
+
+    cleaned = []
+    for w in words:
+        
+        w = re.sub(r"[,.!]", "", w)
+
+        if w.startswith("X-"):
+            w = w.replace("X-", "")
+        if w.startswith("DESC-"):
+            w = w.replace("DESC-", "")
+
+        cleaned.append(w)
+
+    return cleaned
 
 # Test the conversion on some example sentences
 if __name__ == "__main__":
