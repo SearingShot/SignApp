@@ -1,125 +1,199 @@
-# SignApp
+# SignApp — Speech & Text to 3D Sign Language Avatar
 
-A comprehensive audio processing pipeline for sign language recognition that leverages state-of-the-art models for speech-to-text conversion and disfluency removal.
+An AI-powered pipeline that converts **spoken or typed English** into **ASL (American Sign Language)** and renders it on a **3D avatar** in real time.
 
 ## 📋 Overview
 
-SignApp processes audio input through multiple stages:
+SignApp bridges the communication gap between hearing and Deaf communities through a multi-stage NLP + 3D animation pipeline:
 
-1. **Audio Transcription**: Converts audio to text using OpenAI's Whisper model
-2. **Disfluency Removal**: Cleans transcriptions by removing speech disfluencies (filler words, stutters, etc.)
-3. **Sign Language Processing**: Further processes cleaned text for sign language recognition (in progress)
+```
+Voice / Text Input
+       │
+       ▼
+┌──────────────┐     ┌────────────────┐     ┌──────────────────┐
+│   Whisper    │ ──▶ │   Disfluency   │ ──▶ │  Gloss Converter │
+│  (Speech→    │     │   Removal      │     │  (English → ASL  │
+│   Text)      │     │   (T5 Model)   │     │   Gloss Tokens)  │
+└──────────────┘     └────────────────┘     └──────────────────┘
+                                                     │
+                                                     ▼
+                                            ┌──────────────────┐
+                                            │  MongoDB Lookup  │
+                                            │  (Sign Rules +   │
+                                            │   Fingerspelling) │
+                                            └──────────────────┘
+                                                     │
+                                                     ▼
+                                            ┌──────────────────┐
+                                            │  3D Avatar       │
+                                            │  (Three.js +     │
+                                            │   GLB Model)     │
+                                            └──────────────────┘
+```
 
 ## 🚀 Features
 
-- FastAPI-based REST API for easy integration
-- Automatic audio transcription with language detection
-- Intelligent disfluency removal using transformer models
-- GPU acceleration support
-- MLflow integration for experiment tracking
+- **Voice Input** — Record via microphone with Voice Activity Detection (auto-stop on silence)
+- **Text Input** — Type messages directly as an alternative to voice
+- **Speech-to-Text** — OpenAI Whisper model with automatic language detection
+- **Disfluency Removal** — Fine-tuned T5 model removes filler words, stutters, and false starts
+- **Hybrid Gloss Converter** — Rule-based grammar transforms + NLTK lemmatization + 300+ word glossary + phrase matching
+- **MongoDB Sign Database** — 100+ ASL sign rules with handshape, location, and movement data
+- **Fingerspelling Fallback** — Unknown words are finger-spelled letter by letter (A-Z)
+- **3D Avatar Animation** — Three.js + GLB model with per-bone rotation, smooth lerp interpolation, and idle breathing
+- **Sign Playback** — Replay previously signed sequences
+- **Docker Support** — Containerized deployment with Docker Compose
 
 ## 📁 Project Structure
 
 ```
 SignApp/
 ├── src/
-│   └── sign_app/              # Main application package
+│   └── sign_app/                    # Main application package
 │       ├── __init__.py
-│       ├── api.py             # FastAPI application and routes
-│       ├── audio/             # Audio processing module
+│       ├── api.py                   # FastAPI app & routes
+│       ├── seed_signs.py            # MongoDB seeder (100+ signs, A-Z fingerspelling)
+│       │
+│       ├── audio/                   # Audio processing module
 │       │   └── __init__.py
-│       ├── disfluency/        # Disfluency removal module
+│       │
+│       ├── disfluency/              # Disfluency removal module
 │       │   ├── __init__.py
-│       │   ├── inference.py   # Disfluency removal inference
-│       │   └── training.py    # Model training scripts
-│       └── ui/                # UI interfaces (in progress)
-│           └── __init__.py
-├── tests/                      # Test suite
-│   └── __init__.py
-├── docs/                       # Documentation
-├── uploads/                    # Temporary audio file storage
-├── pyproject.toml             # Project configuration
-├── README.md                  # This file
-└── .gitignore                 # Git ignore rules
+│       │   ├── inference.py         # T5 disfluency removal inference
+│       │   └── training.py          # Model fine-tuning pipeline
+│       │
+│       ├── sign_language_text/      # English → ASL conversion
+│       │   ├── __init__.py
+│       │   ├── gloss_converter.py   # Hybrid rule-based + NLP gloss converter
+│       │   ├── inference.py         # Sign language model inference
+│       │   └── training.py          # Sign language model training
+│       │
+│       └── ui/                      # Frontend (served by FastAPI)
+│           ├── __init__.py
+│           ├── index.html           # Main UI page
+│           ├── main.js              # Three.js scene, avatar, recording & UI logic
+│           ├── signEngine.js        # Sign playback engine (movements, fingerspelling)
+│           ├── fingerspellDictionary.js  # A-Z finger bone rotation data
+│           └── avatar.glb           # 3D humanoid avatar model
+│
+├── tests/
+│   ├── __init__.py
+│   └── test_gloss_converter.py      # Gloss converter unit tests
+│
+├── docs/
+│   ├── API.md                       # API endpoint reference
+│   ├── DEVELOPMENT.md               # Development guide
+│   └── INSTALLATION.md              # Setup instructions
+│
+├── .github/workflows/               # CI/CD pipelines
+├── Dockerfile                       # Container build
+├── docker-compose.yml               # Docker Compose (backend + volumes)
+├── pyproject.toml                   # Project metadata & dependencies
+├── requirements.txt                 # pip requirements
+├── CONTRIBUTING.md                  # Contribution guidelines
+├── LICENSE                          # MIT License
+└── README.md                       # This file
 ```
 
-## 🔧 Installation
+## 🔧 Setup
 
 ### Prerequisites
 
 - Python 3.12+
-- CUDA 11.8+ (optional, for GPU acceleration)
+- MongoDB (local or Atlas)
+- CUDA 11.8+ *(optional, for GPU acceleration)*
 
-### Setup
+### Installation
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd SignApp
-```
+1. **Clone & enter the project**:
+   ```bash
+   git clone <repository-url>
+   cd SignApp
+   ```
 
-2. Create a virtual environment:
-```bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# or
-source .venv/bin/activate  # Linux/Mac
-```
+2. **Create a virtual environment**:
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate        # Windows
+   # source .venv/bin/activate   # Linux/Mac
+   ```
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## 📚 Usage
+4. **Configure environment**: Create a `.env` file in the project root:
+   ```env
+   MONGODB_URI=mongodb://localhost:27017/
+   WHISPER_MODEL=small
+   HOST=0.0.0.0
+   PORT=8000
+   ```
 
-### Running the API Server
+5. **Seed the database** (populates 100+ sign rules, A-Z fingerspelling, handshapes, locations, movements):
+   ```bash
+   python -m src.sign_app.seed_signs
+   ```
+
+### Running the App
 
 ```bash
 uvicorn src.sign_app.api:app --reload
 ```
 
-The API will be available at `http://localhost:8000`
+Open **http://localhost:8000** to use the UI. You can:
+- 🎤 **Click the mic** to record a voice message (auto-stops after 2s of silence)
+- ⌨️ **Type text** in the input field and press Enter / Send
+- 🔄 **Replay** the last signed sequence
 
-### API Endpoints
-
-#### Voice to Text
-Convert audio file to text with automatic language detection:
+### Docker
 
 ```bash
-curl -X POST "http://localhost:8000/voice-to-text/" \
-  -F "file=@audio.mp3"
+docker-compose up --build
+```
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/` | Serve the UI |
+| `POST` | `/voice-to-text/` | Full pipeline: audio → transcription → gloss → sign sequence |
+| `POST` | `/text-to-sign/` | Text-only pipeline: text → gloss → sign sequence |
+
+### Example — Text to Sign
+
+```bash
+curl -X POST http://localhost:8000/text-to-sign/ \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello, I want to help you"}'
 ```
 
 Response:
 ```json
 {
-  "language": "en",
-  "transcription": "your transcribed text here"
+  "cleaned_transcription": "Hello, I want to help you",
+  "sign_friendly_text": ["HELLO", "I", "WANT", "HELP", "YOU"],
+  "sign_sequence": [
+    {"type": "sign", "gloss": "HELLO", "handshape": "B", "location": "forehead", "movement": "wave"},
+    {"type": "sign", "gloss": "I", "handshape": "POINT", "location": "chest", "movement": "tap"},
+    ...
+  ]
 }
 ```
 
-### Training Disfluency Removal Model
+## 🧠 Tech Stack
 
-```bash
-python src/sign_app/disfluency/training.py
-```
-
-This script:
-- Downloads the DisfluencySpeech dataset
-- Fine-tunes a T5 model for disfluency removal
-- Logs metrics to MLflow
-- Saves the model locally
-
-### Using Disfluency Removal
-
-```python
-from src.sign_app.disfluency.inference import remove_disfluency
-
-text = "Yeah uh I I don't work but I used to work"
-cleaned = remove_disfluency(text)
-print(cleaned)  # "I don't work but I used to work"
-```
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | FastAPI + Uvicorn |
+| **Speech-to-Text** | OpenAI Whisper (small, 774M params) |
+| **Disfluency Removal** | Fine-tuned T5-base (223M params) |
+| **Gloss Conversion** | NLTK WordNet Lemmatizer + rule-based transforms |
+| **Sign Database** | MongoDB (sign rules, fingerspelling, handshapes) |
+| **3D Rendering** | Three.js + GLB avatar model |
+| **Containerization** | Docker + Docker Compose |
 
 ## 🛠️ Development
 
@@ -129,64 +203,30 @@ print(cleaned)  # "I don't work but I used to work"
 pytest tests/
 ```
 
-### Code Structure
+### Training the Disfluency Model
 
-- `api.py`: FastAPI endpoints and audio handling
-- `disfluency/inference.py`: Disfluency removal inference logic
-- `disfluency/training.py`: Model training pipeline with MLflow tracking
-
-### Dependencies
-
-- `fastapi`: Web framework
-- `uvicorn`: ASGI server
-- `openai-whisper`: Speech-to-text model
-- `transformers`: Disfluency removal models
-- `mlflow`: Experiment tracking
-- `torch`: Deep learning framework
-
-## 📊 Model Information
-
-### Whisper Model
-- Size: Small (774M parameters)
-- Trained on: 680,000 hours of multilingual audio data
-- Supports: 99 languages
-
-### Disfluency Removal
-- Base Model: T5-base (223M parameters)
-- Fine-tuned on: DisfluencySpeech dataset
-- Metrics: BLEU, ROUGE
-
-## 🚀 Deployment
-
-For production deployment:
-
-1. Update API configuration (CORS, security, etc.)
-2. Use a production ASGI server (Gunicorn + Uvicorn)
-3. Set up environment variables for model paths
-4. Configure MLflow tracking server for experiment management
-
-## 📝 License
-
-[Add your license information here]
-
-## 🤝 Contributing
-
-[Add contribution guidelines here]
+```bash
+python -m src.sign_app.disfluency.training
+```
+Downloads the DisfluencySpeech dataset, fine-tunes T5, logs metrics to MLflow, and saves the model locally.
 
 ## ❓ Troubleshooting
 
-### GPU Memory Issues
-- Use smaller model variant: `whisper.load_model("tiny")`
-- Reduce batch size in training configurations
+| Issue | Solution |
+|-------|---------|
+| GPU out of memory | Use `WHISPER_MODEL=tiny` in `.env` |
+| Model download errors | Check internet connection; models cache in `~/.cache/huggingface/` |
+| MongoDB connection fails | Verify `MONGODB_URI` in `.env`; ensure MongoDB is running |
+| No signs appear | Run `python -m src.sign_app.seed_signs` to populate the database |
 
-### Model Download Errors
-- Ensure stable internet connection during first run
-- Models are cached in `~/.cache/huggingface/`
+## 📝 License
 
-## 📧 Contact
+MIT — see [LICENSE](LICENSE)
 
-[Add contact information here]
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Note**: This project is currently in active development. Additional features and sign language processing capabilities are being added.
+**Note**: This project is in active development. Features being explored include multi-agent LLM translation, real-time WebSocket streaming, and enhanced 3D avatar expressions.

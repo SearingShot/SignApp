@@ -26,6 +26,12 @@ const transcriptLabel = document.getElementById("transcript-label")
 const transcriptText  = document.getElementById("transcript-text")
 const glossTokensEl   = document.getElementById("gloss-tokens")
 
+const replayBtn    = document.getElementById("replay-btn")
+const textInput    = document.getElementById("text-input")
+const sendBtn     = document.getElementById("send-btn")
+
+let lastSignSequence = []
+
 /* ═══════════════════════════════════════════════════════════
    THREE.JS SCENE
    ═══════════════════════════════════════════════════════════ */
@@ -528,6 +534,8 @@ async function sendAudioToBackend() {
     displayTranscript(data)
 
     if (data.sign_sequence && data.sign_sequence.length > 0) {
+      lastSignSequence = data.sign_sequence
+      replayBtn.disabled = false
       setUIState("signing")
       if (avatar) avatar.visible = true
       playSentence(data.sign_sequence)
@@ -604,6 +612,67 @@ function displayTranscript(data) {
 
 /* ─── Mic button handler ───────────────────────────────── */
 micBtn.onclick = startRecording
+
+/* ─── Text Input handlers ──────────────────────────────── */
+async function sendTextToBackend() {
+  const text = textInput.value.trim()
+  if (!text) return
+
+  textInput.value = ""
+  setUIState("processing")
+
+  try {
+    const response = await fetch("/text-to-sign/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    })
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+    const data = await response.json()
+    console.log("Text backend response:", data)
+
+    displayTranscript(data)
+
+    if (data.sign_sequence && data.sign_sequence.length > 0) {
+      lastSignSequence = data.sign_sequence
+      replayBtn.disabled = false
+      setUIState("signing")
+      if (avatar) avatar.visible = true
+      playSentence(data.sign_sequence)
+    } else {
+      setUIState("ready")
+    }
+
+  } catch (err) {
+    console.error("Text backend error:", err)
+    transcriptLabel.textContent = ""
+    transcriptText.textContent = "Connection error — is the backend running?"
+    transcriptText.classList.add("visible")
+    setUIState("ready")
+  }
+}
+
+sendBtn.onclick = sendTextToBackend
+textInput.onkeydown = (e) => {
+  if (e.key === "Enter") sendTextToBackend()
+}
+
+/* ─── Replay handler ──────────────────────────────────── */
+replayBtn.onclick = () => {
+  if (lastSignSequence.length > 0) {
+    // Re-trigger the tokens visualization
+    displayTranscript({
+      cleaned_transcription: transcriptText.textContent,
+      sign_friendly_text: Array.from(glossTokensEl.querySelectorAll(".gloss-token")).map(el => el.textContent),
+      sign_sequence: lastSignSequence
+    })
+    
+    setUIState("signing")
+    playSentence(lastSignSequence)
+  }
+}
 
 /* ─── Initial state ────────────────────────────────────── */
 setUIState("ready")

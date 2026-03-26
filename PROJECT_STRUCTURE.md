@@ -1,139 +1,98 @@
-# SignApp - Project Structure
+# SignApp — Project Structure
 
-## Overview
-
-Your SignApp project has been successfully restructured for GitHub publication. The project follows Python packaging best practices and is organized into logical modules.
-
-## Final Project Structure
+## Directory Layout
 
 ```
 SignApp/
-├── .github/                          # GitHub-specific files
-│   └── workflows/                    # CI/CD pipelines
-│       ├── tests.yml                 # Automated testing workflow
-│       └── lint.yml                  # Code quality checks
 │
-├── src/                              # Source code (preferred Python layout)
-│   └── sign_app/                     # Main application package
-│       ├── __init__.py               # Package initialization
-│       ├── api.py                    # FastAPI application & routes
+├── src/                                 # Source code
+│   └── sign_app/                        # Main application package
+│       ├── __init__.py                  # Package initialization
+│       ├── api.py                       # FastAPI app, routes, MongoDB lookups
+│       ├── seed_signs.py                # Database seeder (100+ sign rules, A-Z fingerspelling)
 │       │
-│       ├── audio/                    # Audio processing module
-│       │   └── __init__.py           # Module initialization
+│       ├── audio/                       # Audio processing module
+│       │   └── __init__.py
 │       │
-│       ├── disfluency/               # Disfluency removal module
-│       │   ├── __init__.py           # Module initialization
-│       │   ├── inference.py          # Disfluency removal inference
-│       │   └── training.py           # Model training & fine-tuning
+│       ├── disfluency/                  # Speech disfluency removal
+│       │   ├── __init__.py
+│       │   ├── inference.py             # T5-based disfluency removal (inference)
+│       │   └── training.py              # Fine-tuning pipeline with MLflow tracking
 │       │
-│       └── ui/                       # UI interfaces (for future development)
-│           └── __init__.py           # Module initialization
+│       ├── sign_language_text/          # English → ASL conversion
+│       │   ├── __init__.py
+│       │   ├── gloss_converter.py       # Hybrid gloss converter (rules + NLTK + glossary)
+│       │   ├── inference.py             # Sign language model inference
+│       │   └── training.py              # Sign language model training
+│       │
+│       └── ui/                          # Frontend (served as static files by FastAPI)
+│           ├── __init__.py
+│           ├── index.html               # Main UI page (mic button, text input, avatar viewport)
+│           ├── main.js                  # Three.js scene, avatar loading, recording, UI state machine
+│           ├── signEngine.js            # Sign playback engine (handshape, location, movement animations)
+│           ├── fingerspellDictionary.js  # A-Z fingerspelling bone rotation data (26 letters)
+│           └── avatar.glb              # 3D humanoid avatar model (GLB format)
 │
-├── tests/                            # Test suite
-│   └── __init__.py                   # Test package initialization
+├── tests/                               # Test suite
+│   ├── __init__.py
+│   └── test_gloss_converter.py          # Unit tests for the gloss converter
 │
-├── docs/                             # Documentation
-│   ├── INSTALLATION.md               # Installation & setup guide
-│   ├── DEVELOPMENT.md                # Development guide & architecture
-│   └── API.md                        # API reference documentation
+├── docs/                                # Documentation
+│   ├── API.md                           # REST API endpoint reference
+│   ├── DEVELOPMENT.md                   # Development guide & architecture notes
+│   └── INSTALLATION.md                  # Detailed setup instructions
 │
-├── uploads/                          # Temporary audio file storage (git-tracked via .gitkeep)
-│   └── .gitkeep                      # Preserve empty directory in git
+├── .github/
+│   └── workflows/                       # CI/CD pipelines
+│       ├── tests.yml                    # Automated test runner
+│       └── lint.yml                     # Code quality checks
 │
-├── Configuration Files (root level)
-│   ├── pyproject.toml                # Project metadata & dependencies
-│   ├── requirements.txt              # pip requirements
-│   ├── .gitignore                    # Git ignore rules (updated)
-│   ├── LICENSE                       # MIT License
-│   └── README.md                     # Project documentation
+├── Configuration
+│   ├── pyproject.toml                   # Project metadata, dependencies, tool config
+│   ├── requirements.txt                 # pip requirements
+│   ├── Dockerfile                       # Container image (Python 3.12-slim + ffmpeg)
+│   ├── docker-compose.yml               # Docker Compose (ports, env, volumes, healthcheck)
+│   ├── .gitignore                       # Git ignore rules
+│   └── .env                             # Environment variables (MongoDB URI, Whisper model, etc.)
 │
-└── Metadata Files
-    ├── CONTRIBUTING.md               # Contribution guidelines
-    ├── .python-version               # Python version specification
-    └── .venv/                        # Virtual environment (excluded from git)
+└── Metadata
+    ├── README.md                        # Project overview & usage guide
+    ├── CONTRIBUTING.md                  # Contribution guidelines
+    └── LICENSE                          # MIT License
 ```
 
-## Key Improvements
+## Module Descriptions
 
-### 1. **Proper Package Structure**
-   - Source code organized under `src/sign_app/`
-   - Clear module separation (audio, disfluency, ui)
-   - All modules have `__init__.py` files
+### `api.py` — FastAPI Backend
+The central entrypoint. Defines four routes:
+- `GET /` — serves the UI (`index.html`)
+- `GET /health` — health check
+- `POST /voice-to-text/` — full voice pipeline (Whisper → disfluency removal → gloss → sign sequence)
+- `POST /text-to-sign/` — text-only pipeline (disfluency removal → gloss → sign sequence)
 
-### 2. **Configuration Management**
-   - `pyproject.toml`: Modern Python project configuration
-   - `requirements.txt`: Easy dependency installation
-   - Updated `.gitignore`: Excludes unnecessary files
+Uses lazy-loaded models (Whisper, disfluency T5) and MongoDB for sign rule lookups. Serves the `ui/` directory as static files.
 
-### 3. **Documentation**
-   - `README.md`: Comprehensive project overview
-   - `docs/INSTALLATION.md`: Setup instructions
-   - `docs/DEVELOPMENT.md`: Architecture & development guide
-   - `docs/API.md`: API endpoint reference
+### `sign_language_text/gloss_converter.py` — Hybrid Gloss Converter
+Converts English text to ASL gloss tokens via a multi-phase pipeline:
+1. Normalize text (lowercase, strip punctuation)
+2. Match multi-word phrases (`"thank you"` → `THANK-YOU`)
+3. Word-level glossary lookup (300+ entries)
+4. NLTK POS-tag + WordNet lemmatization (`"going"` → `"go"` → `GO`)
+5. Unknown words pass through uppercase (fingerspelled by the frontend)
+6. Drop filler words, articles, copulas, and auxiliaries
 
-### 4. **CI/CD Ready**
-   - `.github/workflows/tests.yml`: Automated testing
-   - `.github/workflows/lint.yml`: Code quality checks
+### `disfluency/` — Speech Cleanup
+- **`inference.py`** — Loads the fine-tuned T5 model and removes disfluencies from transcriptions
+- **`training.py`** — Fine-tunes T5-base on the DisfluencySpeech dataset with MLflow tracking
 
-### 5. **Contributing Guidelines**
-   - `CONTRIBUTING.md`: How to contribute to the project
-   - `LICENSE`: MIT License for open-source sharing
+### `seed_signs.py` — Database Seeder
+Populates MongoDB with:
+- 100+ ASL sign rules (handshape + location + movement)
+- 26 fingerspelling letters
+- Handshape names, location names, movement names
 
-## Original Files Location
-
-The original Python files from root have been copied to module directories:
-- `main.py` → `src/sign_app/api.py` (FastAPI application)
-- `disfluency_removal_Inference.py` → `src/sign_app/disfluency/inference.py`
-- `disfluency_removal_model_training.py` → `src/sign_app/disfluency/training.py`
-
-*Note: Original files remain in root for reference. You can safely delete them after verifying the copies work correctly.*
-
-## Next Steps
-
-### 1. Update Import Statements
-If your code imports from the old locations, update to:
-```python
-from src.sign_app.api import app
-from src.sign_app.disfluency.inference import remove_disfluency
-from src.sign_app.disfluency.training import train_model
-```
-
-Or run from project root and use:
-```python
-import sys
-sys.path.insert(0, 'src')
-from sign_app.api import app
-```
-
-### 2. Delete Original Root Files (Optional)
-Once verified, remove the original files:
-```bash
-rm main.py disfluency_removal_Inference.py disfluency_removal_model_training.py
-```
-
-### 3. Update README Links
-Replace placeholders in configuration files:
-- `CONTRIBUTING.md`: Add contact info
-- `docs/API.md`: Add any additional endpoints
-- `docs/INSTALLATION.md`: Verify all instructions
-
-### 4. Push to GitHub
-```bash
-git add .
-git commit -m "Initial project restructuring for GitHub"
-git push origin main
-```
-
-## Project Ready for GitHub!
-
-Your SignApp project is now properly structured and ready to be pushed to GitHub with:
-✅ Professional package layout  
-✅ Comprehensive documentation  
-✅ CI/CD workflows  
-✅ Contributing guidelines  
-✅ Proper license  
-✅ Clean .gitignore  
-
----
-
-For any questions, refer to the documentation in the `docs/` folder.
+### `ui/` — 3D Avatar Frontend
+- **`main.js`** — Three.js scene (camera, lights, avatar loading), voice recording with VAD, text input, UI state machine, handshape/location/fingerspell systems
+- **`signEngine.js`** — Sign playback orchestrator: sequences signs and fingerspelling, applies bone rotations and animated movements (tap, wave, circle, forward, etc.)
+- **`fingerspellDictionary.js`** — Per-letter finger bone rotation data for all 26 ASL letters
+- **`avatar.glb`** — Humanoid 3D model with named bones (RightHand, RightForeArm, finger joints)
