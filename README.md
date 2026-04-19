@@ -227,6 +227,10 @@ MIT — see [LICENSE](LICENSE)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+## 🕒 Recent Updates
+
+- **Bugfix (UI)**: Restored `applyLocation` and the anatomical `LOCATIONS` mapping in `main.js` to fix a `ReferenceError` that prevented UI buttons from working properly.
+
 ---
 
 **Note**: This project is in active development. Features being explored include multi-agent LLM translation, real-time WebSocket streaming, and enhanced 3D avatar expressions.

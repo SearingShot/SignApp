@@ -60,7 +60,7 @@ function playNext(signs) {
   }
 }
 
-/* ── Play a single sign (handshape + location + movement) ── */
+/* ── Play a single sign (handshape + location + movement + expression) ── */
 function playSign(sign, done) {
   // 1. Apply handshape
   applyHandshapePose(sign.handshape)
@@ -68,11 +68,19 @@ function playSign(sign, done) {
   // 2. Apply location (arm positioning)
   window.applyLocation(sign.location)
 
-  // 3. Apply movement animation
+  // 3. Apply expression
+  if (window.applyExpression) {
+    window.applyExpression(sign.expression || "neutral")
+  }
+
+  // 4. Apply movement animation
   const moveDuration = applyMovement(sign.movement)
 
   // Wait for the pose to settle + movement to complete
-  setTimeout(done, Math.max(600, moveDuration + 200))
+  setTimeout(() => {
+    if (window.applyExpression) window.applyExpression("neutral")
+    done()
+  }, Math.max(600, moveDuration + 200))
 }
 
 /* ── Fingerspell a single letter ───────────────────────── */
@@ -144,6 +152,8 @@ function applyMovement(movement) {
 
     case "forward": return animateForward()
 
+    case "pull_in": return animatePullIn()
+
     case "down": return animateDown()
 
     case "up": return animateUp()
@@ -156,6 +166,8 @@ function applyMovement(movement) {
 
     case "wave": return animateWave()
 
+    case "touch": return animateTouch()
+
     default:
       console.log("Unknown movement:", movement)
       return 0
@@ -165,32 +177,43 @@ function applyMovement(movement) {
 /* ── Movement implementations ──────────────────────────── */
 
 function animateTap() {
-  // Small forward-backward pulse of the forearm
-  const bone = "RightForeArm"
-  const current = getCurrentRotation(bone)
-  const tap = { ...current, x: current.x - 0.15 }
+  const boneR = "RightForeArm"
+  const boneL = "LeftForeArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
+  
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x - 0.15 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x - 0.15 }
 
-  window.targetRotations[bone] = tap
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
   }, 200)
 
   return 400
 }
 
 function animateDoubleTap() {
-  const bone = "RightForeArm"
-  const current = getCurrentRotation(bone)
-  const tap = { ...current, x: current.x - 0.15 }
+  const boneR = "RightForeArm"
+  const boneL = "LeftForeArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
+  
+  const applyTap = () => {
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x - 0.15 }
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x - 0.15 }
+  }
+  const applyReset = () => {
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
+  }
 
-  window.targetRotations[bone] = tap
+  applyTap()
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    applyReset()
     setTimeout(() => {
-      window.targetRotations[bone] = tap
-      setTimeout(() => {
-        window.targetRotations[bone] = current
-      }, 150)
+      applyTap()
+      setTimeout(() => applyReset(), 150)
     }, 200)
   }, 150)
 
@@ -198,24 +221,36 @@ function animateDoubleTap() {
 }
 
 function animateCircle(direction) {
-  // Circular wrist/forearm motion
-  const bone = "RightHand"
-  const current = getCurrentRotation(bone)
+  const boneR = "RightHand"
+  const boneL = "LeftHand"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
   const steps = 8
   const radius = 0.2
   let step = 0
 
   const interval = setInterval(() => {
     const angle = (step / steps) * Math.PI * 2 * direction
-    window.targetRotations[bone] = {
-      x: current.x + Math.sin(angle) * radius,
-      y: current.y + Math.cos(angle) * radius,
-      z: current.z
+    if (window.targetRotations[boneR]) {
+      window.targetRotations[boneR] = {
+        x: currentR.x + Math.sin(angle) * radius,
+        y: currentR.y + Math.cos(angle) * radius,
+        z: currentR.z
+      }
+    }
+    if (window.targetRotations[boneL]) {
+      // Mirror circle on left hand (invert Y)
+      window.targetRotations[boneL] = {
+        x: currentL.x + Math.sin(angle) * radius,
+        y: currentL.y - Math.cos(angle) * radius,
+        z: currentL.z
+      }
     }
     step++
     if (step >= steps) {
       clearInterval(interval)
-      window.targetRotations[bone] = current
+      if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+      if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
     }
   }, 80)
 
@@ -223,56 +258,88 @@ function animateCircle(direction) {
 }
 
 function animateForward() {
-  // Arm moves forward (extend forearm)
-  const bone = "RightForeArm"
-  const current = getCurrentRotation(bone)
-  const forward = { ...current, x: current.x - 0.3 }
+  const boneR = "RightForeArm"
+  const boneL = "LeftForeArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = forward
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x - 0.3 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x - 0.3 }
+
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
+  }, 350)
+
+  return 500
+}
+
+function animatePullIn() {
+  const boneR = "RightForeArm"
+  const boneL = "LeftForeArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
+
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x + 0.3 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x + 0.3 }
+
+  setTimeout(() => {
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
   }, 350)
 
   return 500
 }
 
 function animateDown() {
-  // Arm moves downward
-  const bone = "RightArm"
-  const current = getCurrentRotation(bone)
-  const down = { ...current, x: current.x + 0.3 }
+  const boneR = "RightArm"
+  const boneL = "LeftArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = down
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x + 0.3 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x + 0.3 }
+
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
   }, 350)
 
   return 500
 }
 
 function animateUp() {
-  // Arm moves upward
-  const bone = "RightArm"
-  const current = getCurrentRotation(bone)
-  const up = { ...current, x: current.x - 0.3 }
+  const boneR = "RightArm"
+  const boneL = "LeftArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = up
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x - 0.3 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x - 0.3 }
+
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
   }, 350)
 
   return 500
 }
 
 function animateSideToSide() {
-  const bone = "RightHand"
-  const current = getCurrentRotation(bone)
+  const boneR = "RightHand"
+  const boneL = "LeftHand"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = { ...current, z: current.z - 0.2 }
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, z: currentR.z - 0.2 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, z: currentL.z + 0.2 }
+  
   setTimeout(() => {
-    window.targetRotations[bone] = { ...current, z: current.z + 0.2 }
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, z: currentR.z + 0.2 }
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, z: currentL.z - 0.2 }
     setTimeout(() => {
-      window.targetRotations[bone] = current
+      if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+      if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
     }, 200)
   }, 200)
 
@@ -280,27 +347,37 @@ function animateSideToSide() {
 }
 
 function animateNod() {
-  const bone = "RightHand"
-  const current = getCurrentRotation(bone)
-  const nod = { ...current, x: current.x + 0.25 }
+  const boneR = "RightHand"
+  const boneL = "LeftHand"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = nod
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x + 0.25 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x + 0.25 }
+
   setTimeout(() => {
-    window.targetRotations[bone] = current
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
   }, 250)
 
   return 450
 }
 
 function animateTwist() {
-  const bone = "RightHand"
-  const current = getCurrentRotation(bone)
+  const boneR = "RightHand"
+  const boneL = "LeftHand"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
 
-  window.targetRotations[bone] = { ...current, y: current.y + 0.4 }
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, y: currentR.y + 0.4 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, y: currentL.y - 0.4 }
+  
   setTimeout(() => {
-    window.targetRotations[bone] = { ...current, y: current.y - 0.4 }
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, y: currentR.y - 0.4 }
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, y: currentL.y + 0.4 }
     setTimeout(() => {
-      window.targetRotations[bone] = current
+      if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+      if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
     }, 200)
   }, 250)
 
@@ -308,23 +385,43 @@ function animateTwist() {
 }
 
 function animateWave() {
-  // Small wave-like motion for greeting signs
-  const bone = "RightHand"
-  const current = getCurrentRotation(bone)
+  const boneR = "RightHand"
+  const boneL = "LeftHand"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
   let step = 0
   const steps = 6
 
   const interval = setInterval(() => {
     const val = Math.sin(step * 1.2) * 0.2
-    window.targetRotations[bone] = { ...current, z: current.z + val }
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, z: currentR.z + val }
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, z: currentL.z - val }
     step++
     if (step >= steps) {
       clearInterval(interval)
-      window.targetRotations[bone] = current
+      if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+      if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
     }
   }, 100)
 
   return steps * 100 + 100
+}
+
+function animateTouch() {
+  const boneR = "RightForeArm"
+  const boneL = "LeftForeArm"
+  const currentR = getCurrentRotation(boneR)
+  const currentL = getCurrentRotation(boneL)
+
+  if (window.targetRotations[boneR]) window.targetRotations[boneR] = { ...currentR, x: currentR.x + 0.15 }
+  if (window.targetRotations[boneL]) window.targetRotations[boneL] = { ...currentL, x: currentL.x + 0.15 }
+
+  setTimeout(() => {
+    if (window.targetRotations[boneR]) window.targetRotations[boneR] = currentR
+    if (window.targetRotations[boneL]) window.targetRotations[boneL] = currentL
+  }, 200)
+
+  return 400
 }
 
 /* ── Helpers ───────────────────────────────────────────── */

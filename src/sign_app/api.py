@@ -12,8 +12,19 @@ from pymongo import MongoClient
 
 load_dotenv()
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Loading models on startup...")
+    # Load them directly
+    get_whisper()
+    get_disfluency_fn()
+    print("Models loaded successfully!")
+    yield
+
 # ── App ────────────────────────────────────────────────────────────
-app = FastAPI(title="SignApp", version="0.1.0")
+app = FastAPI(title="SignApp", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +94,7 @@ def build_sign_sequence(gloss_tokens: list[str]) -> list[dict]:
                 "handshape": rule["handshape"],
                 "location": rule["location"],
                 "movement": rule["movement"],
+                "expression": rule.get("expression", "neutral"),
             })
         else:
             # Fingerspell each letter

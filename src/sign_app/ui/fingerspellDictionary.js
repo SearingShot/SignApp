@@ -204,10 +204,10 @@ export const FINGERSPELL = {
     thumb1: { x: 0.6, y: 0, z: 0.3 },
     thumb2: { x: 0.5, y: 0, z: 0 },
     thumb3: { x: 0.3, y: 0, z: 0 },
-    index1: { x: 0, y: 0, z: 0 }, index2: { x: 0, y: 0, z: 0 }, index3: { x: 0, y: 0, z: 0 },
-    middle1: { x: 0, y: 0, z: -0.2 }, middle2: { x: 0, y: 0, z: 0 }, middle3: { x: 0, y: 0, z: 0 },
-    ring1: { x: 1.2, y: 0, z: 0 }, ring2: { x: 1.0, y: 0, z: 0 }, ring3: { x: 0.8, y: 0, z: 0 },
-    pinky1: { x: 1.2, y: 0, z: 0 }, pinky2: { x: 1.0, y: 0, z: 0 }, pinky3: { x: 0.8, y: 0, z: 0 },
+    index1: { x: 0, y: 0, z: -0.1 }, index2: { x: 0, y: 0, z: 0 }, index3: { x: 0, y: 0, z: 0 },
+    middle1: { x: 0.1, y: 0, z: 0.2 }, middle2: { x: 0.2, y: 0, z: 0 }, middle3: { x: 0.1, y: 0, z: 0 },
+    ring1: { x: 1.5, y: 0, z: 0 }, ring2: { x: 1.2, y: 0, z: 0 }, ring3: { x: 1.0, y: 0, z: 0 },
+    pinky1: { x: 1.5, y: 0, z: 0 }, pinky2: { x: 1.2, y: 0, z: 0 }, pinky3: { x: 1.0, y: 0, z: 0 },
     wrist: { x: 0, y: 0, z: 0 }
   },
 

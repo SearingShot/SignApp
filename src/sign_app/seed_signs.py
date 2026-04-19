@@ -34,7 +34,7 @@ SIGN_RULES = [
     {"sign": "EXCUSE",     "handshape": "FLAT", "location": "chest",         "movement": "forward"},
 
     # Pronouns
-    {"sign": "I",          "handshape": "POINT","location": "chest",         "movement": "tap"},
+    {"sign": "I",          "handshape": "POINT","location": "chest",         "movement": "touch"},
     {"sign": "YOU",        "handshape": "POINT","location": "neutral_space", "movement": "forward"},
     {"sign": "HE",         "handshape": "POINT","location": "side",          "movement": "forward"},
     {"sign": "SHE",        "handshape": "POINT","location": "side",          "movement": "forward"},
@@ -59,7 +59,7 @@ SIGN_RULES = [
     {"sign": "TELL",       "handshape": "POINT","location": "chin",          "movement": "forward"},
     {"sign": "ASK",        "handshape": "POINT","location": "neutral_space", "movement": "forward"},
     {"sign": "GO",         "handshape": "POINT","location": "neutral_space", "movement": "forward"},
-    {"sign": "COME",       "handshape": "POINT","location": "neutral_space", "movement": "forward"},
+    {"sign": "COME",       "handshape": "POINT","location": "neutral_space", "movement": "pull_in"},
     {"sign": "EAT",        "handshape": "FLAT", "location": "mouth",         "movement": "tap"},
     {"sign": "DRINK",      "handshape": "C",    "location": "mouth",         "movement": "tap"},
     {"sign": "WORK",       "handshape": "S",    "location": "neutral_space", "movement": "tap"},

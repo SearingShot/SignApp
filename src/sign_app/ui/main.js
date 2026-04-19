@@ -44,8 +44,8 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 )
-camera.position.set(0, 1.5, 2.4)
-camera.lookAt(0, 1.5, 0)
+camera.position.set(0, 1.25, 2.4)
+camera.lookAt(0, 1.25, 0)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -91,7 +91,7 @@ loader.load("avatar.glb", (gltf) => {
   avatar = gltf.scene
   scene.add(avatar)
 
-  avatar.scale.set(1.3, 1.3, 1.3)
+  avatar.scale.set(1.0, 1.0, 1.0)
   avatar.position.set(0, -0.3, 0)
 
   avatar.traverse((obj) => {
@@ -102,6 +102,14 @@ loader.load("avatar.glb", (gltf) => {
         x: obj.rotation.x, 
         y: obj.rotation.y, 
         z: obj.rotation.z 
+      }
+    }
+    if (obj.isMesh) {
+      obj.frustumCulled = false // Fixes meshes (like the face) randomly getting cutoff/disappearing
+      if (obj.morphTargetDictionary) {
+        if (!window.faceMesh || Object.keys(obj.morphTargetDictionary).length > Object.keys(window.faceMesh.morphTargetDictionary).length) {
+          window.faceMesh = obj
+        }
       }
     }
   })
@@ -209,29 +217,20 @@ function applyHandshape(shape) {
 
   const shapeUpper = (shape || "OPEN").toUpperCase()
 
+  let pose = HANDSHAPES.OPEN // Default
+
   // Check built-in shapes first
   if (HANDSHAPES[shapeUpper]) {
-    const pose = HANDSHAPES[shapeUpper]
-    for (const bone in pose) {
-      window.targetRotations[bone] = { ...pose[bone] }
-    }
-    return
-  }
-
-  // Check the fingerspell dictionary for letter-based handshapes
-  if (FINGERSPELL[shapeUpper]) {
-    const pose = FINGERSPELL[shapeUpper]
-    for (const key in pose) {
+    pose = HANDSHAPES[shapeUpper]
+  } else if (FINGERSPELL[shapeUpper]) {
+    // Check the fingerspell dictionary for letter-based handshapes
+    pose = {}
+    for (const key in FINGERSPELL[shapeUpper]) {
       const boneName = FINGER_BONE_MAP[key]
-      if (boneName) {
-        window.targetRotations[boneName] = { ...pose[key] }
-      }
+      if (boneName) pose[boneName] = FINGERSPELL[shapeUpper][key]
     }
-    return
   }
 
-  // Default to open hand
-  const pose = HANDSHAPES.OPEN
   for (const bone in pose) {
     window.targetRotations[bone] = { ...pose[bone] }
   }
@@ -242,67 +241,56 @@ function applyHandshape(shape) {
    ═══════════════════════════════════════════════════════════ */
 
 const LOCATIONS = {
-
   neutral_space: {
     RightShoulder: { x: 0, y: 0, z: -0.15 },
     RightArm: { x: -0.3, y: 0, z: 0 },
     RightForeArm: { x: -0.4, y: 0.2, z: 0 },
   },
-
   chest: {
     RightShoulder: { x: 0, y: 0, z: -0.2 },
     RightArm: { x: -0.5, y: 0, z: 0 },
     RightForeArm: { x: -0.6, y: 0.3, z: 0 },
   },
-
   chin: {
     RightShoulder: { x: 0, y: 0, z: -0.3 },
     RightArm: { x: -0.7, y: 0.1, z: 0 },
     RightForeArm: { x: -0.85, y: 0.3, z: 0 },
   },
-
   mouth: {
     RightShoulder: { x: 0, y: 0, z: -0.3 },
     RightArm: { x: -0.75, y: 0.1, z: 0 },
     RightForeArm: { x: -0.9, y: 0.3, z: 0 },
   },
-
   nose: {
     RightShoulder: { x: 0, y: 0, z: -0.32 },
-    RightArm: { x: -0.8, y: 0.1, z: 0 },
-    RightForeArm: { x: -0.95, y: 0.3, z: 0 },
+    RightArm: { x: -0.85, y: 0.1, z: 0 },
+    RightForeArm: { x: -1.0, y: 0.3, z: 0 },
   },
-
   forehead: {
     RightShoulder: { x: 0, y: 0, z: -0.35 },
     RightArm: { x: -0.9, y: 0.1, z: 0 },
     RightForeArm: { x: -1.05, y: 0.3, z: 0 },
   },
-
   temple: {
     RightShoulder: { x: 0, y: 0, z: -0.35 },
     RightArm: { x: -0.85, y: 0.15, z: 0.1 },
     RightForeArm: { x: -1.0, y: 0.35, z: 0 },
   },
-
   side: {
     RightShoulder: { x: 0, y: 0, z: -0.1 },
     RightArm: { x: -0.3, y: 0, z: 0.3 },
     RightForeArm: { x: -0.4, y: 0.2, z: 0 },
   },
-
   shoulder: {
     RightShoulder: { x: 0, y: 0, z: -0.15 },
     RightArm: { x: -0.4, y: 0, z: 0.15 },
     RightForeArm: { x: -0.7, y: 0.2, z: 0 },
   },
-
   ear: {
     RightShoulder: { x: 0, y: 0, z: -0.35 },
     RightArm: { x: -0.85, y: 0.2, z: 0.2 },
     RightForeArm: { x: -1.0, y: 0.35, z: 0 },
   },
-
   waist: {
     RightShoulder: { x: 0, y: 0, z: -0.1 },
     RightArm: { x: -0.2, y: 0, z: 0 },
@@ -317,7 +305,9 @@ function applyLocation(loc) {
   const pose = LOCATIONS[key] || LOCATIONS.neutral_space
 
   for (const bone in pose) {
-    window.targetRotations[bone] = { ...pose[bone] }
+    if (window.targetRotations) {
+      window.targetRotations[bone] = { ...pose[bone] }
+    }
   }
 }
 
@@ -344,10 +334,53 @@ function applyFingerSpell(letter) {
 window.applyHandshape = applyHandshape
 window.applyLocation = applyLocation
 window.applyFingerSpell = applyFingerSpell
+window.playSentence = playSentence
 
 window.clearPose = function() {
   for (const boneName in window.targetRotations) {
-    window.targetRotations[boneName] = { x: 0, y: 0, z: 0 }
+    if (window.targetRotations[boneName]) {
+      window.targetRotations[boneName] = { x: 0, y: 0, z: 0 }
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FACIAL EXPRESSIONS (Morph Targets)
+   ═══════════════════════════════════════════════════════════ */
+const EXPRESSIONS = {
+  neutral: {},
+  happy: { mouthSmile: 1.0 },
+  sad: { mouthOpen: 0.1 },
+  surprise: { mouthOpen: 0.8, mouthSmile: 0.2 },
+  angry: { mouthOpen: 0.3 },
+  question: { mouthOpen: 0.2 }
+}
+
+window.applyExpression = function(exprName) {
+  if (!window.faceMesh || !window.faceMesh.morphTargetDictionary) return
+  
+  const dict = window.faceMesh.morphTargetDictionary
+  const influences = window.faceMesh.morphTargetInfluences
+  
+  // Reset all
+  for (const key in dict) {
+    influences[dict[key]] = 0
+  }
+  
+  const expr = EXPRESSIONS[(exprName || "neutral").toLowerCase()]
+  if (!expr) return
+  
+  for (const key in expr) {
+    let targetIdx = dict[key]
+    if (targetIdx === undefined) {
+      // Find case-insensitive partial match
+      const matchingKey = Object.keys(dict).find(k => k.toLowerCase().includes(key.toLowerCase()))
+      if (matchingKey) targetIdx = dict[matchingKey]
+    }
+    
+    if (targetIdx !== undefined) {
+      influences[targetIdx] = expr[key]
+    }
   }
 }
 
@@ -399,7 +432,7 @@ let silenceTimer = null
 let isRecording = false
 
 const SILENCE_THRESHOLD = 0.015    // RMS threshold for "silence"
-const SILENCE_DURATION  = 2000     // ms of silence before auto-send
+const SILENCE_DURATION  = 10000    // ms of silence before auto-send (updated to 10 seconds)
 const MIN_RECORD_TIME   = 500      // ms minimum recording
 
 // Create waveform bars
@@ -676,3 +709,34 @@ replayBtn.onclick = () => {
 
 /* ─── Initial state ────────────────────────────────────── */
 setUIState("ready")
+/* ─── Theme Toggle ─────────────────────────────────────── */
+const themeBtn = document.getElementById("theme-btn")
+if (themeBtn) {
+  themeBtn.onclick = () => {
+    document.body.classList.toggle("light-mode")
+    const isLight = document.body.classList.contains("light-mode")
+    localStorage.setItem("signapp-theme", isLight ? "light" : "dark")
+    updateThemeIcon(isLight)
+
+    // Also update scene lights to match a bit better in light mode
+    if (isLight) {
+        scene.background = new THREE.Color(0xf1f5f9)
+    } else {
+        scene.background = null // transparent
+    }
+  }
+}
+function updateThemeIcon(isLight) {
+  const icon = document.getElementById("theme-icon")
+  if (!icon) return
+  if (isLight) {
+    icon.innerHTML = '<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7c.22 0 .44.03.65.08C11.13 6.36 10 7.97 10 9.85c0 2.85 2.3 5.15 5.15 5.15 1.88 0 3.49-1.13 4.77-2.65.05.21.08.43.08.65 0 3.86-3.14 7-7 7z"/>'
+  } else {
+    icon.innerHTML = '<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/>'
+  }
+}
+if (localStorage.getItem("signapp-theme") === "light") {
+  document.body.classList.add("light-mode")
+  updateThemeIcon(true)
+  scene.background = new THREE.Color(0xf1f5f9)
+}
