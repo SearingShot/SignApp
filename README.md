@@ -229,7 +229,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 🕒 Recent Updates
 
-- **Bugfix (UI)**: Restored `applyLocation` and the anatomical `LOCATIONS` mapping in `main.js` to fix a `ReferenceError` that prevented UI buttons from working properly.
+- Added theme toggle functionality with `light/dark` mode support.
 
 ---
 
